@@ -5,17 +5,10 @@ from datetime import datetime
 # Page Config
 st.set_page_config(page_title="Διαχείριση Κρατήσεων Εστιατορίου", layout="wide", page_icon="🍽️")
 
-# Custom CSS για καθαρή εμφάνιση & κάρτες
+# Custom CSS
 st.markdown("""
     <style>
     .main-header { font-size: 28px; font-weight: bold; color: #1F4E79; }
-    .res-card {
-        background-color: #1E293B;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        border-left: 5px solid #3B82F6;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -42,9 +35,53 @@ st.sidebar.title("🔒 Πρόσβαση Προσωπικού")
 user_role = st.sidebar.selectbox("Ρόλος Χρήστη", ["Manager / Υποδοχή", "Σερβιτόρος (Προβολή μόνο)"])
 selected_date = st.sidebar.date_input("Επιλογή Ημερομηνίας", datetime.strptime("2026-08-23", "%Y-%m-%d"), format="DD/MM/YYYY")
 
+# Dialog για Επεξεργασία Κράτησης
+@st.dialog("✏️ Επεξεργασία Κράτησης")
+def edit_reservation_dialog(orig_index):
+    row = st.session_state.reservations.iloc[orig_index]
+    
+    with st.form("edit_form"):
+        e_col1, e_col2 = st.columns(2)
+        e_date = e_col1.date_input("Ημερομηνία", row["Ημερομηνία"], format="DD/MM/YYYY")
+        
+        # Εύρεση index ώρας
+        current_time_idx = times_list.index(row["Ώρα"]) if row["Ώρα"] in times_list else 0
+        e_time = e_col2.selectbox("Ώρα", times_list, index=current_time_idx)
+        
+        e_col3, e_col4, e_col5 = st.columns(3)
+        e_name = e_col3.text_input("Όνομα Πελάτη", str(row["Όνομα"]).replace("~~", ""))
+        e_phone = e_col4.text_input("Τηλέφωνο", "" if row["Τηλέφωνο"] == "-" else row["Τηλέφωνο"])
+        e_guests = e_col5.number_input("Άτομα", min_value=1, max_value=30, value=int(row["Άτομα"]))
+        
+        e_col6, e_col7 = st.columns(2)
+        table_idx = tables_list.index(row["Τραπέζι"]) if row["Τραπέζι"] in tables_list else 0
+        e_table = e_col6.selectbox("Τραπέζι", tables_list, index=table_idx)
+        
+        status_idx = status_options.index(row["Κατάσταση"]) if row["Κατάσταση"] in status_options else 0
+        e_status = e_col7.selectbox("Κατάσταση", status_options, index=status_idx)
+        
+        e_notes = st.text_area("Ειδικές Σημειώσεις", "" if row["Σημειώσεις"] == "-" else row["Σημειώσεις"])
+        
+        save_btn = st.form_submit_button("💾 Αποθήκευση Αλλαγών")
+        
+        if save_btn:
+            if not e_name.strip():
+                st.error("Παρακαλώ συμπληρώστε το Όνομα Πελάτη.")
+            else:
+                st.session_state.reservations.at[orig_index, "Ημερομηνία"] = e_date
+                st.session_state.reservations.at[orig_index, "Ώρα"] = e_time
+                st.session_state.reservations.at[orig_index, "Άτομα"] = e_guests
+                st.session_state.reservations.at[orig_index, "Τραπέζι"] = e_table
+                st.session_state.reservations.at[orig_index, "Όνομα"] = e_name.strip()
+                st.session_state.reservations.at[orig_index, "Τηλέφωνο"] = e_phone.strip() if e_phone.strip() else "-"
+                st.session_state.reservations.at[orig_index, "Κατάσταση"] = e_status
+                st.session_state.reservations.at[orig_index, "Σημειώσεις"] = e_notes.strip() if e_notes.strip() else "-"
+                st.success("Η κράτηση ενημερώθηκε!")
+                st.rerun()
+
 # Metrics
 df = st.session_state.reservations
-df_filtered = df[df["Ημερομηνία"] == selected_date].sort_values(by="Ώρα").reset_index(drop=True)
+df_filtered = df[df["Ημερομηνία"] == selected_date].sort_values(by="Ώρα")
 
 col1, col2, col3 = st.columns(3)
 col1.metric("Συνολικές Κρατήσεις", len(df_filtered))
@@ -63,22 +100,24 @@ with tab1:
         st.info("Δεν υπάρχουν καταχωρημένες κρατήσεις για αυτή την ημερομηνία.")
     else:
         # Κεφαλίδες Λίστας
-        h_col1, h_col2, h_col3, h_col4, h_col5, h_col6 = st.columns([1, 1, 3, 2, 2, 3])
+        h_col1, h_col2, h_col3, h_col4, h_col5, h_col6, h_col7 = st.columns([1, 1.2, 2.5, 1.8, 2, 2.5, 0.8])
         h_col1.markdown("**Ώρα**")
         h_col2.markdown("**Τραπέζι**")
         h_col3.markdown("**Όνομα Πελάτη**")
         h_col4.markdown("**Τηλέφωνο**")
         h_col5.markdown("**Κατάσταση**")
         h_col6.markdown("**Σημειώσεις**")
+        h_col7.markdown("**Επεξ.**")
         st.divider()
 
         # Εμφάνιση κρατήσεων
-        for index, row in df_filtered.iterrows():
-            c1, c2, c3, c4, c5, c6 = st.columns([1, 1, 3, 2, 2, 3])
+        for orig_index, row in df_filtered.iterrows():
+            c1, c2, c3, c4, c5, c6, c7 = st.columns([1, 1.2, 2.5, 1.8, 2, 2.5, 0.8])
             
             # Μορφοποίηση ονόματος αν έχει έρθει/ακυρωθεί
             is_done = "Ήρθε" in row["Κατάσταση"] or "Δεν ήρθε" in row["Κατάσταση"]
-            display_name = f"~~{row['Όνομα']}~~" if is_done else row["Όνομα"]
+            clean_name = str(row["Όνομα"]).replace("~~", "")
+            display_name = f"~~{clean_name}~~" if is_done else clean_name
             
             c1.write(f"⏰ {row['Ώρα']}")
             c2.write(f"🪑 {row['Τραπέζι']} ({row['Άτομα']}άτ.)")
@@ -91,19 +130,21 @@ with tab1:
                     "Κατάσταση",
                     status_options,
                     index=status_options.index(current_status),
-                    key=f"status_{index}",
+                    key=f"status_{orig_index}",
                     label_visibility="collapsed"
                 )
                 
                 # Ενημέρωση κατάστασης αν αλλάξει
                 if new_status != row["Κατάσταση"]:
-                    mask = (st.session_state.reservations["Ημερομηνία"] == selected_date) & \
-                           (st.session_state.reservations["Όνομα"] == row["Όνομα"]) & \
-                           (st.session_state.reservations["Ώρα"] == row["Ώρα"])
-                    st.session_state.reservations.loc[mask, "Κατάσταση"] = new_status
+                    st.session_state.reservations.at[orig_index, "Κατάσταση"] = new_status
                     st.rerun()
+                    
+                # Κουμπί Μολύβι για Επεξεργασία
+                if c7.button("✏️", key=f"edit_btn_{orig_index}"):
+                    edit_reservation_dialog(orig_index)
             else:
                 c5.write(row["Κατάσταση"])
+                c7.write("-")
                 
             c6.caption(row["Σημειώσεις"])
             st.divider()
