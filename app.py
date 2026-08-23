@@ -31,7 +31,7 @@ st.divider()
 # Sidebar - Login Simulation & Filters
 st.sidebar.title("🔒 Πρόσβαση Προσωπικού")
 user_role = st.sidebar.selectbox("Ρόλος Χρήστη", ["Manager / Υποδοχή", "Σερβιτόρος (Προβολή μόνο)"])
-selected_date = st.sidebar.date_input("Επιλογή Ημερομηνίας", datetime.strptime("2026-08-23", "%Y-%m-%d"))
+selected_date = st.sidebar.date_input("Επιλογή Ημερομηνίας", datetime.strptime("2026-08-23", "%Y-%m-%d"), format="DD/MM/YYYY")
 
 # Metrics & Ταξινόμηση ανά Ώρα
 df = st.session_state.reservations
@@ -57,7 +57,7 @@ with tab1:
             edited_df = st.data_editor(
                 df_filtered,
                 column_config={
-                    "Ημερομηνία": st.column_config.DateColumn("Ημερομηνία", format="YYYY-MM-DD", required=True),
+                    "Ημερομηνία": st.column_config.DateColumn("Ημερομηνία", format="DD/MM/YYYY", required=True),
                     "Τραπέζι": st.column_config.SelectboxColumn("Τραπέζι", options=tables_list, required=True),
                     "Κατάσταση": st.column_config.SelectboxColumn("Κατάσταση", options=["Επιβεβαιωμένη", "Αναμονή", "Ολοκληρώθηκε", "Ακυρώθηκε"], required=True),
                 },
@@ -84,7 +84,7 @@ with tab2:
         st.subheader("Καταχώρηση Νέας Κράτησης")
         with st.form("new_reservation_form"):
             f_col1, f_col2 = st.columns(2)
-            res_date = f_col1.date_input("Ημερομηνία", selected_date)
+            res_date = f_col1.date_input("Ημερομηνία", selected_date, format="DD/MM/YYYY")
             res_time = f_col2.time_input("Ώρα", datetime.strptime("20:00", "%H:%M").time())
             
             f_col3, f_col4, f_col5 = st.columns(3)
