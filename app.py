@@ -22,13 +22,14 @@ st.markdown("""
 # Δημιουργία λίστας τραπεζιών & ωρών
 tables_list = [f"Π{i}" for i in range(1, 31)] + ["Π60", "Π70"]
 times_list = [f"{h:02d}:{m:02d}" for h in range(12, 24) for m in (0, 15, 30, 45)]
+status_options = ["Αναμονή", "Ήρθε ✅", "Δεν ήρθε ❌"]
 
 # Initialize Session State Database
 if "reservations" not in st.session_state:
     st.session_state.reservations = pd.DataFrame([
-        {"Ημερομηνία": pd.to_datetime("2026-08-23").date(), "Ώρα": "20:00", "Άτομα": 4, "Τραπέζι": "Π1", "Όνομα": "Γιώργος Παπαδόπουλος", "Τηλέφωνο": "6912345678", "Κατάσταση": "Επιβεβαιωμένη", "Σημειώσεις": "Κοντά στο παράθυρο"},
+        {"Ημερομηνία": pd.to_datetime("2026-08-23").date(), "Ώρα": "20:00", "Άτομα": 4, "Τραπέζι": "Π1", "Όνομα": "Γιώργος Παπαδόπουλος", "Τηλέφωνο": "6912345678", "Κατάσταση": "Αναμονή", "Σημειώσεις": "Κοντά στο παράθυρο"},
         {"Ημερομηνία": pd.to_datetime("2026-08-23").date(), "Ώρα": "22:00", "Άτομα": 2, "Τραπέζι": "Π5", "Όνομα": "Μαρία Ιωάννου", "Τηλέφωνο": "6923456789", "Κατάσταση": "Ήρθε ✅", "Σημειώσεις": "Γενέθλια - Τούρτα"},
-        {"Ημερομηνία": pd.to_datetime("2026-08-23").date(), "Ώρα": "21:00", "Άτομα": 6, "Τραπέζι": "Π60", "Όνομα": "Κώστας Δημήτριου", "Τηλέφωνο": "6934567890", "Κατάσταση": "Επιβεβαιωμένη", "Σημειώσεις": "Παιδικό καθισματάκι"},
+        {"Ημερομηνία": pd.to_datetime("2026-08-23").date(), "Ώρα": "21:00", "Άτομα": 6, "Τραπέζι": "Π60", "Όνομα": "Κώστας Δημήτριου", "Τηλέφωνο": "6934567890", "Κατάσταση": "Αναμονή", "Σημειώσεις": "Παιδικό καθισματάκι"},
     ])
 
 # Header
@@ -48,7 +49,7 @@ df_filtered = df[df["Ημερομηνία"] == selected_date].sort_values(by="Ώ
 col1, col2, col3 = st.columns(3)
 col1.metric("Συνολικές Κρατήσεις", len(df_filtered))
 col2.metric("Σύνολο Ατόμων", int(df_filtered["Άτομα"].sum()) if not df_filtered.empty else 0)
-col3.metric("Επιβεβαιωμένες", len(df_filtered[df_filtered["Κατάσταση"] == "Επιβεβαιωμένη"]))
+col3.metric("Σε Αναμονή", len(df_filtered[df_filtered["Κατάσταση"] == "Αναμονή"]))
 
 st.divider()
 
@@ -86,17 +87,17 @@ with tab1:
             
             if user_role == "Manager / Υποδοχή":
                 # Dropdown κουμπί που ΔΕΝ ανοίγει πληκτρολόγιο
+                current_status = row["Κατάσταση"] if row["Κατάσταση"] in status_options else "Αναμονή"
                 new_status = c5.selectbox(
                     "Κατάσταση",
-                    ["Αναμονή", "Ήρθε ✅", "Δεν ήρθε ❌"],
-                    index=["Επιβεβαιωμένη", "Αναμονή", "Ήρθε ✅", "Δεν ήρθε ❌"].index(row["Κατάσταση"]),
+                    status_options,
+                    index=status_options.index(current_status),
                     key=f"status_{index}",
                     label_visibility="collapsed"
                 )
                 
                 # Ενημέρωση κατάστασης αν αλλάξει
                 if new_status != row["Κατάσταση"]:
-                    # Βρίσκουμε την εγγραφή στη session_state βάση και την ενημερώνουμε
                     mask = (st.session_state.reservations["Ημερομηνία"] == selected_date) & \
                            (st.session_state.reservations["Όνομα"] == row["Όνομα"]) & \
                            (st.session_state.reservations["Ώρα"] == row["Ώρα"])
@@ -126,7 +127,7 @@ with tab2:
             
             f_col6, f_col7 = st.columns(2)
             res_table = f_col6.selectbox("Τραπέζι", tables_list)
-            res_status = f_col7.selectbox("Κατάσταση", ["Επιβεβαιωμένη", "Αναμονή", "Ήρθε ✅", "Δεν ήρθε ❌"])
+            res_status = f_col7.selectbox("Κατάσταση", status_options)
             
             res_notes = st.text_area("Ειδικές Σημειώσεις / Προτιμήσεις")
             
