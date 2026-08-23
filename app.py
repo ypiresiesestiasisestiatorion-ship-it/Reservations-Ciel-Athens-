@@ -29,7 +29,7 @@ if "reservations" not in st.session_state:
     st.session_state.reservations = pd.DataFrame([
         {"Ημερομηνία": pd.to_datetime("2026-08-23").date(), "Ώρα": "20:00", "Άτομα": 4, "Τραπέζι": "Π1", "Όνομα": "Γιώργος Παπαδόπουλος", "Τηλέφωνο": "6912345678", "Κατάσταση": "Αναμονή", "Σημειώσεις": "Κοντά στο παράθυρο"},
         {"Ημερομηνία": pd.to_datetime("2026-08-23").date(), "Ώρα": "22:00", "Άτομα": 2, "Τραπέζι": "Π5", "Όνομα": "Μαρία Ιωάννου", "Τηλέφωνο": "6923456789", "Κατάσταση": "Ήρθε ✅", "Σημειώσεις": "Γενέθλια - Τούρτα"},
-        {"Ημερομηνία": pd.to_datetime("2026-08-23").date(), "Ώρα": "21:00", "Άτομα": 6, "Τραπέζι": "Π60", "Όνομα": "Κώστας Δημήτριου", "Τηλέφωνο": "6934567890", "Κατάσταση": "Αναμονή", "Σημειώσεις": "Παιδικό καθισματάκι"},
+        {"Ημερομηνία": pd.to_datetime("2026-08-23").date(), "Ώρα": "21:00", "Άτομα": 6, "Τραπέζι": "Π60", "Όνομα": "Κώστας Δημήτριου", "Τηλέφωνο": "-", "Κατάσταση": "Αναμονή", "Σημειώσεις": "Παιδικό καθισματάκι"},
     ])
 
 # Header
@@ -72,7 +72,7 @@ with tab1:
         h_col6.markdown("**Σημειώσεις**")
         st.divider()
 
-        # Εμφάνιση κρατήσεων χωρίς να ανοίγει πληκτρολόγιο
+        # Εμφάνιση κρατήσεων
         for index, row in df_filtered.iterrows():
             c1, c2, c3, c4, c5, c6 = st.columns([1, 1, 3, 2, 2, 3])
             
@@ -86,7 +86,6 @@ with tab1:
             c4.write(row["Τηλέφωνο"])
             
             if user_role == "Manager / Υποδοχή":
-                # Dropdown κουμπί που ΔΕΝ ανοίγει πληκτρολόγιο
                 current_status = row["Κατάσταση"] if row["Κατάσταση"] in status_options else "Αναμονή"
                 new_status = c5.selectbox(
                     "Κατάσταση",
@@ -122,7 +121,7 @@ with tab2:
             
             f_col3, f_col4, f_col5 = st.columns(3)
             res_name = f_col3.text_input("Όνομα Πελάτη")
-            res_phone = f_col4.text_input("Τηλέφωνο")
+            res_phone = f_col4.text_input("Τηλέφωνο (Προαιρετικό)")
             res_guests = f_col5.number_input("Άτομα", min_value=1, max_value=30, value=2)
             
             f_col6, f_col7 = st.columns(2)
@@ -134,18 +133,18 @@ with tab2:
             submit = st.form_submit_button("💾 Αποθήκευση Κράτησης")
             
             if submit:
-                if not res_name or not res_phone:
-                    st.error("Παρακαλώ συμπληρώστε Όνομα και Τηλέφωνο.")
+                if not res_name.strip():
+                    st.error("Παρακαλώ συμπληρώστε το Όνομα Πελάτη.")
                 else:
                     new_row = {
                         "Ημερομηνία": res_date,
                         "Ώρα": res_time,
                         "Άτομα": res_guests,
                         "Τραπέζι": res_table,
-                        "Όνομα": res_name,
-                        "Τηλέφωνο": res_phone,
+                        "Όνομα": res_name.strip(),
+                        "Τηλέφωνο": res_phone.strip() if res_phone.strip() else "-",
                         "Κατάσταση": res_status,
-                        "Σημειώσεις": res_notes if res_notes else "-"
+                        "Σημειώσεις": res_notes.strip() if res_notes.strip() else "-"
                     }
                     st.session_state.reservations = pd.concat([st.session_state.reservations, pd.DataFrame([new_row])], ignore_index=True)
                     st.success(f"Η κράτηση για {res_name} καταχωρήθηκε επιτυχώς!")
