@@ -9,7 +9,6 @@ st.set_page_config(page_title="Διαχείριση Κρατήσεων Εστι�
 st.markdown("""
     <style>
     .main-header { font-size: 28px; font-weight: bold; color: #1F4E79; }
-    .card { background-color: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 5px solid #1F4E79; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -26,7 +25,7 @@ if "reservations" not in st.session_state:
 
 # Header
 st.markdown("<div class='main-header'>🍽️ Βιβλίο Κρατήσεων Εστιατορίου</div>", unsafe_allow_html=True)
-st.write("Κλειστή εφαρμογή διαχείρισης σάλας & κρατήσεων")
+st.write("Διαδραστική εφαρμογή διαχείρισης σάλας & κρατήσεων")
 st.divider()
 
 # Sidebar - Login Simulation & Filters
@@ -46,18 +45,37 @@ col3.metric("Επιβεβαιωμένες", len(df_filtered[df_filtered["Κατ�
 st.divider()
 
 # Main Tabs
-tab1, tab2 = st.tabs(["📋 Κρατήσεις Ημέρας", "➕ Νέα Κράτηση"])
+tab1, tab2 = st.tabs(["📋 Κρατήσεις Ημέρας", "➕ Νέα Κράτητα"])
 
 with tab1:
     st.subheader(f"Πρόγραμμα για {selected_date.strftime('%d/%m/%Y')}")
     if df_filtered.empty:
         st.info("Δεν υπάρχουν καταχωρημένες κρατήσεις για αυτή την ημερομηνία.")
     else:
-        st.dataframe(
-            df_filtered[["Ώρα", "Τραπέζι", "Όνομα", "Άτομα", "Τηλέφωνο", "Κατάσταση", "Σημειώσεις"]],
-            use_container_width=True,
-            hide_index=True
-        )
+        if user_role == "Manager / Υποδοχή":
+            st.caption("💡 Πατήστε πάνω σε οποιοδήποτε κελί για να αλλάξετε στοιχεία ή τσεκάρετε το κουτάκι αριστερά για διαγραφή.")
+            edited_df = st.data_editor(
+                df_filtered,
+                column_config={
+                    "Τραπέζι": st.column_config.SelectboxColumn("Τραπέζι", options=tables_list, required=True),
+                    "Κατάσταση": st.column_config.SelectboxColumn("Κατάσταση", options=["Επιβεβαιωμένη", "Αναμονή", "Ολοκληρώθηκε", "Ακυρώθηκε"], required=True),
+                },
+                num_rows="dynamic",
+                use_container_width=True,
+                hide_index=True,
+                key="editor"
+            )
+            # Ενημέρωση της βάσης δεδομένων αν γίνουν αλλαγές
+            if not edited_df.equals(df_filtered):
+                st.session_state.reservations.update(edited_df)
+                st.success("Οι αλλαγές αποθηκεύτηκαν!")
+                st.rerun()
+        else:
+            st.dataframe(
+                df_filtered[["Ώρα", "Τραπέζι", "Όνομα", "Άτομα", "Τηλέφωνο", "Κατάσταση", "Σημειώσεις"]],
+                use_container_width=True,
+                hide_index=True
+            )
 
 with tab2:
     if user_role == "Σερβιτόρος (Προβολή μόνο)":
@@ -76,7 +94,7 @@ with tab2:
             
             f_col6, f_col7 = st.columns(2)
             res_table = f_col6.selectbox("Τραπέζι", tables_list)
-            res_status = f_col7.selectbox("Κατάσταση", ["Επιβεβαιωμένη", "Αναμονή"])
+            res_status = f_col7.selectbox("Κατάσταση", ["Επιβεβαιωμένη", "Αναμονή", "Ολοκληρώθηκε", "Ακυρώθηκε"])
             
             res_notes = st.text_area("Ειδικές Σημειώσεις / Προτιμήσεις")
             
