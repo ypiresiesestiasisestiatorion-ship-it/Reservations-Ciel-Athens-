@@ -12,6 +12,21 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Λεξικό για ημέρες στα Ελληνικά
+DAYS_GR = {
+    "Monday": "Δευτέρα",
+    "Tuesday": "Τρίτη",
+    "Wednesday": "Τετάρτη",
+    "Thursday": "Πέμπτη",
+    "Friday": "Παρασκευή",
+    "Saturday": "Σάββατο",
+    "Sunday": "Κυριακή"
+}
+
+def format_date_with_day(date_obj):
+    day_name = DAYS_GR[date_obj.strftime("%A")]
+    return f"{day_name} {date_obj.strftime('%d/%m/%Y')}"
+
 # Δημιουργία λίστας τραπεζιών & ωρών
 tables_list = [f"Π{i}" for i in range(1, 31)] + ["Π60", "Π70"]
 times_list = [f"{h:02d}:{m:02d}" for h in range(12, 24) for m in (0, 15, 30, 45)]
@@ -121,7 +136,9 @@ with tab1:
         st.session_state.selected_date += timedelta(days=1)
         st.rerun()
 
-    st.subheader(f"Πρόγραμμα για {st.session_state.selected_date.strftime('%d/%m/%Y')}")
+    # Εμφάνιση Ημέρας & Ημερομηνίας
+    formatted_date = format_date_with_day(st.session_state.selected_date)
+    st.subheader(f"Πρόγραμμα για {formatted_date}")
     
     if df_filtered.empty:
         st.info("Δεν υπάρχουν καταχωρημένες κρατήσεις για αυτή την ημερομηνία.")
