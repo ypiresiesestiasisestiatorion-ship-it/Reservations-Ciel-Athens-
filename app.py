@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Page Config
 st.set_page_config(page_title="Διαχείριση Κρατήσεων Εστιατορίου", layout="wide", page_icon="🍽️")
@@ -17,12 +17,16 @@ tables_list = [f"Π{i}" for i in range(1, 31)] + ["Π60", "Π70"]
 times_list = [f"{h:02d}:{m:02d}" for h in range(12, 24) for m in (0, 15, 30, 45)]
 status_options = ["Αναμονή", "Ήρθε ✅", "Δεν ήρθε ❌"]
 
+# Initialize Selected Date in Session State
+if "selected_date" not in st.session_state:
+    st.session_state.selected_date = datetime.strptime("2026-08-23", "%Y-%m-%d").date()
+
 # Initialize Session State Database
 if "reservations" not in st.session_state:
     st.session_state.reservations = pd.DataFrame([
         {"Ημερομηνία": pd.to_datetime("2026-08-23").date(), "Ώρα": "20:00", "Άτομα": 4, "Τραπέζι": "Π1", "Όνομα": "Γιώργος Παπαδόπουλος", "Τηλέφωνο": "6912345678", "Κατάσταση": "Αναμονή", "Σημειώσεις": "Κοντά στο παράθυρο"},
         {"Ημερομηνία": pd.to_datetime("2026-08-23").date(), "Ώρα": "22:00", "Άτομα": 2, "Τραπέζι": "Π5", "Όνομα": "Μαρία Ιωάννου", "Τηλέφωνο": "6923456789", "Κατάσταση": "Ήρθε ✅", "Σημειώσεις": "Γενέθλια - Τούρτα"},
-        {"Ημερομηνία": pd.to_datetime("2026-08-23").date(), "Ώρα": "21:00", "Άτομα": 6, "Τραπέζι": "Π60", "Όνομα": "Κώστας Δημήτριου", "Τηλέφωνο": "-", "Κατάσταση": "Αναμονή", "Σημειώσεις": "Παιδικό καθισματάκι"},
+        {"Ημερομηνία": pd.to_datetime("2026-08-25").date(), "Ώρα": "20:00", "Άτομα": 4, "Τραπέζι": "Π17", "Όνομα": "Nikos", "Τηλέφωνο": "-", "Κατάσταση": "Αναμονή", "Σημειώσεις": "-"},
     ])
 
 # Header
@@ -33,7 +37,7 @@ st.divider()
 # Sidebar
 st.sidebar.title("🔒 Πρόσβαση Προσωπικού")
 user_role = st.sidebar.selectbox("Ρόλος Χρήστη", ["Manager / Υποδοχή", "Σερβιτόρος (Προβολή μόνο)"])
-selected_date = st.sidebar.date_input("Επιλογή Ημερομηνίας", datetime.strptime("2026-08-23", "%Y-%m-%d"), format="DD/MM/YYYY")
+st.session_state.selected_date = st.sidebar.date_input("Επιλογή Ημερομηνίας", st.session_state.selected_date, format="DD/MM/YYYY")
 
 # Dialog για Επεξεργασία Κράτησης
 @st.dialog("✏️ Επεξεργασία Κράτησης")
@@ -44,7 +48,6 @@ def edit_reservation_dialog(orig_index):
         e_col1, e_col2 = st.columns(2)
         e_date = e_col1.date_input("Ημερομηνία", row["Ημερομηνία"], format="DD/MM/YYYY")
         
-        # Εύρεση index ώρας
         current_time_idx = times_list.index(row["Ώρα"]) if row["Ώρα"] in times_list else 0
         e_time = e_col2.selectbox("Ώρα", times_list, index=current_time_idx)
         
@@ -81,7 +84,7 @@ def edit_reservation_dialog(orig_index):
 
 # Metrics
 df = st.session_state.reservations
-df_filtered = df[df["Ημερομηνία"] == selected_date].sort_values(by="Ώρα")
+df_filtered = df[df["Ημερομηνία"] == st.session_state.selected_date].sort_values(by="Ώρα")
 
 col1, col2, col3 = st.columns(3)
 col1.metric("Συνολικές Κρατήσεις", len(df_filtered))
@@ -94,7 +97,31 @@ st.divider()
 tab1, tab2 = st.tabs(["📋 Κρατήσεις Ημέρας", "➕ Νέα Κράτηση"])
 
 with tab1:
-    st.subheader(f"Πρόγραμμα για {selected_date.strftime('%d/%m/%Y')}")
+    # 📌 ΚΟΥΜΠΙΑ ΓΡΗΓΟΡΗΣ ΠΛΟΗΓΗΣΗΣ ΗΜΕΡΟΜΗΝΙΑΣ
+    nav_col1, nav_col2, nav_col3, nav_col4, nav_col5 = st.columns([1.5, 1.2, 1.2, 1.2, 1.5])
+    
+    if nav_col1.button("◀️ Προηγούμενη"):
+        st.session_state.selected_date -= timedelta(days=1)
+        st.rerun()
+        
+    today = datetime.now().date()
+    if nav_col2.button("Σήμερα"):
+        st.session_state.selected_date = today
+        st.rerun()
+        
+    if nav_col3.button("Αύριο"):
+        st.session_state.selected_date = today + timedelta(days=1)
+        st.rerun()
+        
+    if nav_col4.button("Μεθαύριο"):
+        st.session_state.selected_date = today + timedelta(days=2)
+        st.rerun()
+        
+    if nav_col5.button("Επόμενη ▶️"):
+        st.session_state.selected_date += timedelta(days=1)
+        st.rerun()
+
+    st.subheader(f"Πρόγραμμα για {st.session_state.selected_date.strftime('%d/%m/%Y')}")
     
     if df_filtered.empty:
         st.info("Δεν υπάρχουν καταχωρημένες κρατήσεις για αυτή την ημερομηνία.")
@@ -114,7 +141,6 @@ with tab1:
         for orig_index, row in df_filtered.iterrows():
             c1, c2, c3, c4, c5, c6, c7 = st.columns([1, 1.2, 2.5, 1.8, 2, 2.5, 0.8])
             
-            # Μορφοποίηση ονόματος αν έχει έρθει/ακυρωθεί
             is_done = "Ήρθε" in row["Κατάσταση"] or "Δεν ήρθε" in row["Κατάσταση"]
             clean_name = str(row["Όνομα"]).replace("~~", "")
             display_name = f"~~{clean_name}~~" if is_done else clean_name
@@ -134,12 +160,10 @@ with tab1:
                     label_visibility="collapsed"
                 )
                 
-                # Ενημέρωση κατάστασης αν αλλάξει
                 if new_status != row["Κατάσταση"]:
                     st.session_state.reservations.at[orig_index, "Κατάσταση"] = new_status
                     st.rerun()
                     
-                # Κουμπί Μολύβι για Επεξεργασία
                 if c7.button("✏️", key=f"edit_btn_{orig_index}"):
                     edit_reservation_dialog(orig_index)
             else:
@@ -157,7 +181,7 @@ with tab2:
         
         with st.form("new_reservation_form", clear_on_submit=True):
             f_col1, f_col2 = st.columns(2)
-            res_date = f_col1.date_input("Ημερομηνία", selected_date, format="DD/MM/YYYY")
+            res_date = f_col1.date_input("Ημερομηνία", st.session_state.selected_date, format="DD/MM/YYYY")
             res_time = f_col2.selectbox("Ώρα", times_list, index=times_list.index("20:00"))
             
             f_col3, f_col4, f_col5 = st.columns(3)
