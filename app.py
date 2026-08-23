@@ -49,10 +49,42 @@ st.markdown("<div class='main-header'>🍽️ Βιβλίο Κρατήσεων Ε
 st.write("Διαδραστική εφαρμογή διαχείρισης σάλας & κρατήσεων")
 st.divider()
 
-# Sidebar
+# --- SIDEBAR METRICS & NAVIGATION ---
 st.sidebar.title("🔒 Πρόσβαση Προσωπικού")
 user_role = st.sidebar.selectbox("Ρόλος Χρήστη", ["Manager / Υποδοχή", "Σερβιτόρος (Προβολή μόνο)"])
 st.session_state.selected_date = st.sidebar.date_input("Επιλογή Ημερομηνίας", st.session_state.selected_date, format="DD/MM/YYYY")
+
+st.sidebar.divider()
+st.sidebar.title("📊 Στατιστικά & Μετρήσεις")
+
+# Υπολογισμοί για Sidebar
+all_df = st.session_state.reservations
+sel_date = st.session_state.selected_date
+
+# 1. Μετρήσεις Ημέρας
+day_df = all_df[all_df["Ημερομηνία"] == sel_date]
+day_res = len(day_df)
+day_guests = int(day_df["Άτομα"].sum()) if not day_df.empty else 0
+
+# 2. Μετρήσεις Μήνα
+month_df = all_df[(pd.to_datetime(all_df["Ημερομηνία"]).dt.month == sel_date.month) & 
+                  (pd.to_datetime(all_df["Ημερομηνία"]).dt.year == sel_date.year)]
+month_res = len(month_df)
+month_guests = int(month_df["Άτομα"].sum()) if not month_df.empty else 0
+
+# 3. Μετρήσεις Έτους
+year_df = all_df[pd.to_datetime(all_df["Ημερομηνία"]).dt.year == sel_date.year]
+year_res = len(year_df)
+year_guests = int(year_df["Άτομα"].sum()) if not year_df.empty else 0
+
+st.sidebar.markdown(f"**📅 Ημέρα ({sel_date.strftime('%d/%m')}):**")
+st.sidebar.write(f"• Κρατήσεις: **{day_res}** | Άτομα: **{day_guests}**")
+
+st.sidebar.markdown(f"**🗓️ Μήνας ({sel_date.strftime('%m/%Y')}):**")
+st.sidebar.write(f"• Κρατήσεις: **{month_res}** | Άτομα: **{month_guests}**")
+
+st.sidebar.markdown(f"**📈 Έτος ({sel_date.year}):**")
+st.sidebar.write(f"• Κρατήσεις: **{year_res}** | Άτομα: **{year_guests}**")
 
 # Dialog για Επεξεργασία Κράτησης
 @st.dialog("✏️ Επεξεργασία Κράτησης")
@@ -97,9 +129,8 @@ def edit_reservation_dialog(orig_index):
                 st.success("Η κράτηση ενημερώθηκε!")
                 st.rerun()
 
-# Metrics
-df = st.session_state.reservations
-df_filtered = df[df["Ημερομηνία"] == st.session_state.selected_date].sort_values(by="Ώρα")
+# Metrics Κεντρικής Οθόνης
+df_filtered = all_df[all_df["Ημερομηνία"] == sel_date].sort_values(by="Ώρα")
 
 col1, col2, col3 = st.columns(3)
 col1.metric("Συνολικές Κρατήσεις", len(df_filtered))
@@ -112,7 +143,6 @@ st.divider()
 tab1, tab2 = st.tabs(["📋 Κρατήσεις Ημέρας", "➕ Νέα Κράτηση"])
 
 with tab1:
-    # 📌 ΚΟΥΜΠΙΑ ΓΡΗΓΟΡΗΣ ΠΛΟΗΓΗΣΗΣ ΗΜΕΡΟΜΗΝΙΑΣ
     nav_col1, nav_col2, nav_col3, nav_col4, nav_col5 = st.columns([1.5, 1.2, 1.2, 1.2, 1.5])
     
     if nav_col1.button("◀️ Προηγούμενη"):
@@ -136,14 +166,12 @@ with tab1:
         st.session_state.selected_date += timedelta(days=1)
         st.rerun()
 
-    # Εμφάνιση Ημέρας & Ημερομηνίας
     formatted_date = format_date_with_day(st.session_state.selected_date)
     st.subheader(f"Πρόγραμμα για {formatted_date}")
     
     if df_filtered.empty:
         st.info("Δεν υπάρχουν καταχωρημένες κρατήσεις για αυτή την ημερομηνία.")
     else:
-        # Κεφαλίδες Λίστας
         h_col1, h_col2, h_col3, h_col4, h_col5, h_col6, h_col7 = st.columns([1, 1.2, 2.5, 1.8, 2, 2.5, 0.8])
         h_col1.markdown("**Ώρα**")
         h_col2.markdown("**Τραπέζι**")
@@ -154,7 +182,6 @@ with tab1:
         h_col7.markdown("**Επεξ.**")
         st.divider()
 
-        # Εμφάνιση κρατήσεων
         for orig_index, row in df_filtered.iterrows():
             c1, c2, c3, c4, c5, c6, c7 = st.columns([1, 1.2, 2.5, 1.8, 2, 2.5, 0.8])
             
