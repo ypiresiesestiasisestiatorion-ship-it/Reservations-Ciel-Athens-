@@ -1,0 +1,100 @@
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+
+# Page Config
+st.set_page_config(page_title="Διαχείριση Κρατήσεων Εστιατορίου", layout="wide", page_icon="🍽️")
+
+# Custom Styling
+st.markdown("""
+    <style>
+    .main-header { font-size: 28px; font-weight: bold; color: #1F4E79; }
+    .card { background-color: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 5px solid #1F4E79; }
+    </style>
+""", unsafe_allow_html=True)
+
+# Initialize Session State Database
+if "reservations" not in st.session_state:
+    st.session_state.reservations = pd.DataFrame([
+        {"ID": 1, "Ημερομηνία": "2026-08-23", "Ώρα": "20:00", "Άτομα": 4, "Τραπέζι": "T-04", "Όνομα": "Γιώργος Παπαδόπουλος", "Τηλέφωνο": "6912345678", "Κατάσταση": "Επιβεβαιωμένη", "Σημειώσεις": "Κοντά στο παράθυρο"},
+        {"ID": 2, "Ημερομηνία": "2026-08-23", "Ώρα": "20:30", "Άτομα": 2, "Τραπέζι": "T-01", "Όνομα": "Μαρία Ιωάννου", "Τηλέφωνο": "6923456789", "Κατάσταση": "Ολοκληρώθηκε", "Σημειώσεις": "Γενέθλια - Τούρτα"},
+        {"ID": 3, "Ημερομηνία": "2026-08-23", "Ώρα": "21:00", "Άτομα": 6, "Τραπέζι": "T-10", "Όνομα": "Κώστας Δημήτριου", "Τηλέφωνο": "6934567890", "Κατάσταση": "Επιβεβαιωμένη", "Σημειώσεις": "Παιδικό καθισματάκι"},
+    ])
+
+# Header
+st.markdown("<div class='main-header'>🍽️ Βιβλίο Κρατήσεων Εστιατορίου</div>", unsafe_allow_html=True)
+st.write("Κλειστή εφαρμογή διαχείρισης σάλας & κρατήσεων")
+st.divider()
+
+# Sidebar - Login Simulation & Filters
+st.sidebar.title("🔒 Πρόσβαση Προσωπικού")
+user_role = st.sidebar.selectbox("Ρόλος Χρήστη", ["Manager / Υποδοχή", "Σερβιτόρος (Προβολή μόνο)"])
+selected_date = st.sidebar.date_input("Επιλογή Ημερομηνίας", datetime.strptime("2026-08-23", "%Y-%m-%d"))
+
+# Metrics / KPIs
+df = st.session_state.reservations
+df_filtered = df[df["Ημερομηνία"] == str(selected_date)]
+
+col1, col2, col3 = st.columns(3)
+col1.metric("Συνολικές Κρατήσεις", len(df_filtered))
+col2.metric("Σύνολο Ατόμων", int(df_filtered["Άτομα"].sum()) if not df_filtered.empty else 0)
+col3.metric("Επιβεβαιωμένες", len(df_filtered[df_filtered["Κατάσταση"] == "Επιβεβαιωμένη"]))
+
+st.divider()
+
+# Main Tabs
+tab1, tab2 = st.tabs(["📋 Κρατήσεις Ημέρας", "➕ Νέα Κράτηση"])
+
+with tab1:
+    st.subheader(f"Πρόγραμμα για {selected_date.strftime('%d/%m/%Y')}")
+    if df_filtered.empty:
+        st.info("Δεν υπάρχουν καταχωρημένες κρατήσεις για αυτή την ημερομηνία.")
+    else:
+        st.dataframe(
+            df_filtered[["Ώρα", "Τραπέζι", "Όνομα", "Άτομα", "Τηλέφωνο", "Κατάσταση", "Σημειώσεις"]],
+            use_container_width=True,
+            hide_index=True
+        )
+
+with tab2:
+    if user_role == "Σερβιτόρος (Προβολή μόνο)":
+        st.warning("⚠️ Δεν έχετε δικαίωμα καταχώρησης νέων κρατήσεων.")
+    else:
+        st.subheader("Καταχώρηση Νέας Κράτησης")
+        with st.form("new_reservation_form"):
+            f_col1, f_col2 = st.columns(2)
+            res_date = f_col1.date_input("Ημερομηνία", selected_date)
+            res_time = f_col2.time_input("Ώρα", datetime.strptime("20:00", "%H:%M").time())
+            
+            f_col3, f_col4, f_col5 = st.columns(3)
+            res_name = f_col3.text_input("Όνομα Πελάτη")
+            res_phone = f_col4.text_input("Τηλέφωνο")
+            res_guests = f_col5.number_input("Άτομα", min_value=1, max_value=30, value=2)
+            
+            f_col6, f_col7 = st.columns(2)
+            res_table = f_col6.selectbox("Τραπέζι", ["T-01", "T-02", "T-03", "T-04", "T-05", "T-06", "T-10", "T-12"])
+            res_status = f_col7.selectbox("Κατάσταση", ["Επιβεβαιωμένη", "Αναμονή"])
+            
+            res_notes = st.text_area("Ειδικές Σημειώσεις / Προτιμήσεις")
+            
+            submit = st.form_submit_button("💾 Αποθήκευση Κράτησης")
+            
+            if submit:
+                if not res_name or not res_phone:
+                    st.error("Παρακαλώ συμπληρώστε Όνομα και Τηλέφωνο.")
+                else:
+                    new_id = len(st.session_state.reservations) + 1
+                    new_row = {
+                        "ID": new_id,
+                        "Ημερομηνία": str(res_date),
+                        "Ώρα": res_time.strftime("%H:%M"),
+                        "Άτομα": res_guests,
+                        "Τραπέζι": res_table,
+                        "Όνομα": res_name,
+                        "Τηλέφωνο": res_phone,
+                        "Κατάσταση": res_status,
+                        "Σημειώσεις": res_notes if res_notes else "-"
+                    }
+                    st.session_state.reservations = pd.concat([st.session_state.reservations, pd.DataFrame([new_row])], ignore_index=True)
+                    st.success(f"Η κράτηση για {res_name} καταχωρήθηκε επιτυχώς!")
+                    st.rerun()
