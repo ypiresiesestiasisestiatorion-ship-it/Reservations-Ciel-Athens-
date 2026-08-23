@@ -19,7 +19,7 @@ tables_list = [f"Π{i}" for i in range(1, 31)] + ["Π60", "Π70"]
 if "reservations" not in st.session_state:
     st.session_state.reservations = pd.DataFrame([
         {"ID": 1, "Ημερομηνία": "2026-08-23", "Ώρα": "20:00", "Άτομα": 4, "Τραπέζι": "Π1", "Όνομα": "Γιώργος Παπαδόπουλος", "Τηλέφωνο": "6912345678", "Κατάσταση": "Επιβεβαιωμένη", "Σημειώσεις": "Κοντά στο παράθυρο"},
-        {"ID": 2, "Ημερομηνία": "2026-08-23", "Ώρα": "20:30", "Άτομα": 2, "Τραπέζι": "Π5", "Όνομα": "Μαρία Ιωάννου", "Τηλέφωνο": "6923456789", "Κατάσταση": "Ολοκληρώθηκε", "Σημειώσεις": "Γενέθλια - Τούρτα"},
+        {"ID": 2, "Ημερομηνία": "2026-08-23", "Ώρα": "22:00", "Άτομα": 2, "Τραπέζι": "Π5", "Όνομα": "Μαρία Ιωάννου", "Τηλέφωνο": "6923456789", "Κατάσταση": "Ολοκληρώθηκε", "Σημειώσεις": "Γενέθλια - Τούρτα"},
         {"ID": 3, "Ημερομηνία": "2026-08-23", "Ώρα": "21:00", "Άτομα": 6, "Τραπέζι": "Π60", "Όνομα": "Κώστας Δημήτριου", "Τηλέφωνο": "6934567890", "Κατάσταση": "Επιβεβαιωμένη", "Σημειώσεις": "Παιδικό καθισματάκι"},
     ])
 
@@ -33,9 +33,9 @@ st.sidebar.title("🔒 Πρόσβαση Προσωπικού")
 user_role = st.sidebar.selectbox("Ρόλος Χρήστη", ["Manager / Υποδοχή", "Σερβιτόρος (Προβολή μόνο)"])
 selected_date = st.sidebar.date_input("Επιλογή Ημερομηνίας", datetime.strptime("2026-08-23", "%Y-%m-%d"))
 
-# Metrics / KPIs
+# Metrics & Ταξινόμηση ανά Ώρα
 df = st.session_state.reservations
-df_filtered = df[df["Ημερομηνία"] == str(selected_date)]
+df_filtered = df[df["Ημερομηνία"] == str(selected_date)].sort_values(by="Ώρα")
 
 col1, col2, col3 = st.columns(3)
 col1.metric("Συνολικές Κρατήσεις", len(df_filtered))
@@ -45,7 +45,7 @@ col3.metric("Επιβεβαιωμένες", len(df_filtered[df_filtered["Κατ�
 st.divider()
 
 # Main Tabs
-tab1, tab2 = st.tabs(["📋 Κρατήσεις Ημέρας", "➕ Νέα Κράτητα"])
+tab1, tab2 = st.tabs(["📋 Κρατήσεις Ημέρας", "➕ Νέα Κράτηση"])
 
 with tab1:
     st.subheader(f"Πρόγραμμα για {selected_date.strftime('%d/%m/%Y')}")
@@ -53,10 +53,11 @@ with tab1:
         st.info("Δεν υπάρχουν καταχωρημένες κρατήσεις για αυτή την ημερομηνία.")
     else:
         if user_role == "Manager / Υποδοχή":
-            st.caption("💡 Πατήστε πάνω σε οποιοδήποτε κελί για να αλλάξετε στοιχεία ή τσεκάρετε το κουτάκι αριστερά για διαγραφή.")
+            st.caption("💡 Πατήστε πάνω σε οποιοδήποτε κελί για αλλαγή (η ημερομηνία ανοίγει ημερολόγιο).")
             edited_df = st.data_editor(
                 df_filtered,
                 column_config={
+                    "Ημερομηνία": st.column_config.DateColumn("Ημερομηνία", format="YYYY-MM-DD", required=True),
                     "Τραπέζι": st.column_config.SelectboxColumn("Τραπέζι", options=tables_list, required=True),
                     "Κατάσταση": st.column_config.SelectboxColumn("Κατάσταση", options=["Επιβεβαιωμένη", "Αναμονή", "Ολοκληρώθηκε", "Ακυρώθηκε"], required=True),
                 },
@@ -65,10 +66,9 @@ with tab1:
                 hide_index=True,
                 key="editor"
             )
-            # Ενημέρωση της βάσης δεδομένων αν γίνουν αλλαγές
+            # Ενημέρωση βάσης σε περίπτωση αλλαγής
             if not edited_df.equals(df_filtered):
                 st.session_state.reservations.update(edited_df)
-                st.success("Οι αλλαγές αποθηκεύτηκαν!")
                 st.rerun()
         else:
             st.dataframe(
