@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, time
 
 # Page Config
 st.set_page_config(page_title="Διαχείριση Κρατήσεων Εστιατορίου", layout="wide", page_icon="🍽️")
@@ -14,6 +14,9 @@ st.markdown("""
 
 # Δημιουργία λίστας τραπεζιών: Π1 έως Π30, + Π60, Π70
 tables_list = [f"Π{i}" for i in range(1, 31)] + ["Π60", "Π70"]
+
+# Δημιουργία λίστας ωρών ανά 15 λεπτά για εύκολη επιλογή (12:00 έως 23:45)
+times_list = [f"{h:02d}:{m:02d}" for h in range(12, 24) for m in (0, 15, 30, 45)]
 
 # Initialize Session State Database
 if "reservations" not in st.session_state:
@@ -53,11 +56,12 @@ with tab1:
         st.info("Δεν υπάρχουν καταχωρημένες κρατήσεις για αυτή την ημερομηνία.")
     else:
         if user_role == "Manager / Υποδοχή":
-            st.caption("💡 Πατήστε πάνω σε οποιοδήποτε κελί για αλλαγή (η ημερομηνία ανοίγει ημερολόγιο).")
+            st.caption("💡 Πατήστε πάνω σε οποιοδήποτε κελί για αλλαγή (Ημερομηνία ➔ Ημερολόγιο, Ώρα ➔ Λίστα επιλογής).")
             edited_df = st.data_editor(
                 df_filtered,
                 column_config={
                     "Ημερομηνία": st.column_config.DateColumn("Ημερομηνία", format="DD/MM/YYYY", required=True),
+                    "Ώρα": st.column_config.SelectboxColumn("Ώρα", options=times_list, required=True),
                     "Τραπέζι": st.column_config.SelectboxColumn("Τραπέζι", options=tables_list, required=True),
                     "Κατάσταση": st.column_config.SelectboxColumn("Κατάσταση", options=["Επιβεβαιωμένη", "Αναμονή", "Ολοκληρώθηκε", "Ακυρώθηκε"], required=True),
                 },
@@ -85,7 +89,7 @@ with tab2:
         with st.form("new_reservation_form"):
             f_col1, f_col2 = st.columns(2)
             res_date = f_col1.date_input("Ημερομηνία", selected_date, format="DD/MM/YYYY")
-            res_time = f_col2.time_input("Ώρα", datetime.strptime("20:00", "%H:%M").time())
+            res_time = f_col2.selectbox("Ώρα", times_list, index=times_list.index("20:00"))
             
             f_col3, f_col4, f_col5 = st.columns(3)
             res_name = f_col3.text_input("Όνομα Πελάτη")
@@ -108,7 +112,7 @@ with tab2:
                     new_row = {
                         "ID": new_id,
                         "Ημερομηνία": res_date,
-                        "Ώρα": res_time.strftime("%H:%M"),
+                        "Ώρα": res_time,
                         "Άτομα": res_guests,
                         "Τραπέζι": res_table,
                         "Όνομα": res_name,
