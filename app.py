@@ -27,16 +27,13 @@ def format_date_with_day(date_obj):
     day_name = DAYS_GR[date_obj.strftime("%A")]
     return f"{day_name} {date_obj.strftime('%d/%m/%Y')}"
 
-# Δημιουργία λίστας τραπεζιών & ωρών
 tables_list = [f"Π{i}" for i in range(1, 31)] + ["Π60", "Π70"]
 times_list = [f"{h:02d}:{m:02d}" for h in range(12, 24) for m in (0, 15, 30, 45)]
 status_options = ["Αναμονή", "Ήρθε ✅", "Δεν ήρθε ❌"]
 
-# Initialize Selected Date in Session State
 if "selected_date" not in st.session_state:
-    st.session_state.selected_date = datetime.strptime("2026-08-23", "%Y-%m-%d").date()
+    st.session_state.selected_date = datetime.now().date()
 
-# Initialize Session State Database
 if "reservations" not in st.session_state:
     st.session_state.reservations = pd.DataFrame([
         {"Ημερομηνία": pd.to_datetime("2026-08-23").date(), "Ώρα": "20:00", "Άτομα": 4, "Τραπέζι": "Π1", "Όνομα": "Γιώργος Παπαδόπουλος", "Τηλέφωνο": "6912345678", "Κατάσταση": "Αναμονή", "Σημειώσεις": "Κοντά στο παράθυρο"},
@@ -49,42 +46,51 @@ st.markdown("<div class='main-header'>🍽️ Βιβλίο Κρατήσεων Ε
 st.write("Διαδραστική εφαρμογή διαχείρισης σάλας & κρατήσεων")
 st.divider()
 
-# --- SIDEBAR METRICS & NAVIGATION ---
+# --- SIDEBAR ---
 st.sidebar.title("🔒 Πρόσβαση Προσωπικού")
 user_role = st.sidebar.selectbox("Ρόλος Χρήστη", ["Manager / Υποδοχή", "Σερβιτόρος (Προβολή μόνο)"])
 st.session_state.selected_date = st.sidebar.date_input("Επιλογή Ημερομηνίας", st.session_state.selected_date, format="DD/MM/YYYY")
 
 st.sidebar.divider()
-st.sidebar.title("📊 Στατιστικά & Μετρήσεις")
+st.sidebar.title("📊 Στατιστικά & Αναφορές")
 
-# Υπολογισμοί για Sidebar
-all_df = st.session_state.reservations
-sel_date = st.session_state.selected_date
+# Φίλτρο επιλογής διαστήματος
+stats_mode = st.sidebar.selectbox("Επιλογή Διαστήματος", ["Τρέχων Μήνας", "Τρέχον Έτος", "Προσαρμοσμένο Εύρος"])
 
-# 1. Μετρήσεις Ημέρας
-day_df = all_df[all_df["Ημερομηνία"] == sel_date]
-day_res = len(day_df)
-day_guests = int(day_df["Άτομα"].sum()) if not day_df.empty else 0
+all_df = st.session_state.reservations.copy()
+all_df["Ημερομηνία"] = pd.to_datetime(all_df["Ημερομηνία"]).dt.date
 
-# 2. Μετρήσεις Μήνα
-month_df = all_df[(pd.to_datetime(all_df["Ημερομηνία"]).dt.month == sel_date.month) & 
-                  (pd.to_datetime(all_df["Ημερομηνία"]).dt.year == sel_date.year)]
-month_res = len(month_df)
-month_guests = int(month_df["Άτομα"].sum()) if not month_df.empty else 0
+today = datetime.now().date()
 
-# 3. Μετρήσεις Έτους
-year_df = all_df[pd.to_datetime(all_df["Ημερομηνία"]).dt.year == sel_date.year]
-year_res = len(year_df)
-year_guests = int(year_df["Άτομα"].sum()) if not year_df.empty else 0
+if stats_mode == "Τρέχων Μήνας":
+    start_d = today.replace(day=1)
+    end_d = today
+elif stats_mode == "Τρέχον Έτος":
+    start_d = today.replace(month=1, day=1)
+    end_d = today
+else:
+    date_range = st.sidebar.date_input(
+        "Εύρος Ημερομηνιών",
+        value=(today - timedelta(days=7), today),
+        format="DD/MM/YYYY"
+    )
+    if isinstance(date_range, tuple) and len(date_range) == 2:
+        start_d, end_d = date_range
+    else:
+        start_d, end_d = today, today
 
-st.sidebar.markdown(f"**📅 Ημέρα ({sel_date.strftime('%d/%m')}):**")
-st.sidebar.write(f"• Κρατήσεις: **{day_res}** | Άτομα: **{day_guests}**")
+# Φιλτράρισμα δεδομένων
+filtered_stats = all_df[(all_df["Ημερομηνία"] >= start_d) & (all_df["Ημερομηνία"] <= end_d)]
 
-st.sidebar.markdown(f"**🗓️ Μήνας ({sel_date.strftime('%m/%Y')}):**")
-st.sidebar.write(f"• Κρατήσεις: **{month_res}** | Άτομα: **{month_guests}**")
+st.sidebar.caption(f"**Περίοδος:** {start_d.strftime('%d/%m/%Y')} έως {end_d.strftime('%d/%m/%Y')}")
+st.sidebar.metric("Συνολικές Κρατήσεις", len(filtered_stats))
+st.sidebar.metric("Σύνολο Ατόμων", int(filtered_stats["Άτομα"].sum()) if not filtered_stats.empty else 0)
 
-st.sidebar.markdown(f"**📈 Έτος ({sel_date.year}):**")
-st.sidebar.write(f"• Κρατήσεις: **{year_res}** | Άτομα: **{year_guests}**")
+if not filtered_stats.empty:
+    arrived = len(filtered_stats[filtered_stats["Κατάσταση"] == "Ήρθε ✅"])
+    no_show = len(filtered_stats[filtered_stats["Κατάσταση"] == "Δεν ήρθε ❌"])
+    st.sidebar.write(f"• Ήρθαν: **{arrived}**")
+    st.sidebar.write(f"• No-Show: **{no_show}**")
 
 # Dialog για Επεξεργασία Κράτησης
 @st.dialog("✏️ Επεξεργασία Κράτησης")
@@ -130,6 +136,7 @@ def edit_reservation_dialog(orig_index):
                 st.rerun()
 
 # Metrics Κεντρικής Οθόνης
+sel_date = st.session_state.selected_date
 df_filtered = all_df[all_df["Ημερομηνία"] == sel_date].sort_values(by="Ώρα")
 
 col1, col2, col3 = st.columns(3)
@@ -149,7 +156,6 @@ with tab1:
         st.session_state.selected_date -= timedelta(days=1)
         st.rerun()
         
-    today = datetime.now().date()
     if nav_col2.button("Σήμερα"):
         st.session_state.selected_date = today
         st.rerun()
