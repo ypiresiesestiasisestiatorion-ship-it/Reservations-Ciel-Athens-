@@ -86,9 +86,9 @@ def format_date_with_day(date_obj):
     day_name = DAYS_GR[date_obj.strftime("%A")]
     return f"{day_name} {date_obj.strftime('%d/%m/%Y')}"
 
-# Τραπέζια Ταράτσας βάσει του νέου σχεδίου
+# Τραπέζια Ταράτσας
 ROOF_TABLES = [
-    "Π1", "Π2", "Π3", "Π4", "Π5", "Π6", "Π7", "Π8", "Π9", "Π10", "Π11", "Π12", "Π13", "Π14",
+    "Π1", "Π2", "Π3", "Π4", "Π5", "Π6", "Π7", "Π8", "Π9", "Π10", "Π11", "Π12", "Π13", "Π13b", "Π14",
     "Π16", "Π17", "Π18", "Π19", "Π20", "Π21", "Π22", "Π23", "Π24", "Π25", "Π26", "Π27", "Π28", "Π29", "Π30",
     "Π40", "Π41", "Π42", "Π43", "Π44", "Π45",
     "Π50", "Π51", "Π52", "Π53", "Π54", "Π55",
@@ -133,7 +133,7 @@ st.divider()
 # --- DIALOGS ---
 @st.dialog("📋 Στοιχεία Τραπεζιού")
 def table_info_dialog(table_code, reservations_list):
-    st.markdown(f"### Τραπέζι `{table_code}`")
+    st.markdown(f"### Τραπέζι `{table_code.replace('b', '')}`")
     if not reservations_list:
         st.success("🟢 Το τραπέζι είναι **Ελεύθερο** για αυτή την ημερομηνία.")
     else:
@@ -256,8 +256,7 @@ with tab2:
     table_res_data = {}
     
     for t in ROOF_TABLES:
-        # Αναζήτηση είτε ως "Π1" είτε ως "1"
-        num_only = t.replace("Π", "")
+        num_only = t.replace("Π", "").replace("b", "")
         t_res = df_filtered[(df_filtered["Τραπέζι"] == t) | (df_filtered["Τραπέζι"] == num_only)]
         
         if t_res.empty:
@@ -271,16 +270,17 @@ with tab2:
                 table_status[t] = "🔴"
             table_res_data[t] = t_res.to_dict('records')
 
-    def draw_table_btn(t_code, display_name=None):
+    def draw_table_btn(t_code, display_name=None, key_suffix=""):
         disp = display_name if display_name else t_code
         label = f"{table_status.get(t_code, '🟢')} {disp}"
-        if st.button(label, key=f"fp_{t_code}", use_container_width=True):
+        btn_key = f"fp_{t_code}_{key_suffix}" if key_suffix else f"fp_{t_code}"
+        if st.button(label, key=btn_key, use_container_width=True):
             table_info_dialog(t_code, table_res_data.get(t_code, []))
 
     st.markdown("<div class='floor-box'>", unsafe_allow_html=True)
     
     # --- 1. ΠΑΝΩ ΜΕΡΟΣ & ΠΛΑΙΝΑ ---
-    top_col_left, top_col_mid, top_col_right = st.columns([1.5, 7, 2])
+    top_col_left, top_col_mid, top_col_right = st.columns([1.5, 7, 2.5])
     
     with top_col_left:
         # Αριστερά: 4 πάνω, 3, 2, 1
@@ -300,7 +300,7 @@ with tab2:
         
         st.write("---")
         
-        # ΚΕΝΤΡΙΚΟΣ ΔΙΑΔΡΟΜΟΣ (ISLAND)
+        # ΚΕΝΤΡΙΚΟΣ ΔΙΑΔΡΟΜΟΣ
         # Πάνω πλευρά διαδρόμου: 40-45
         c_top = st.columns(6)
         for idx, t_code in enumerate(["Π40", "Π41", "Π42", "Π43", "Π44", "Π45"]):
@@ -316,11 +316,11 @@ with tab2:
                 draw_table_btn(t_code, t_code.replace("Π", ""))
 
     with top_col_right:
-        # Πάνω Δεξιά: 13, 14, 13
+        # Πάνω Δεξιά: 13, 14, 13 (με μοναδικά keys)
         tr_cols = st.columns(3)
-        with tr_cols[0]: draw_table_btn("Π13", "13")
+        with tr_cols[0]: draw_table_btn("Π13", "13", key_suffix="top1")
         with tr_cols[1]: draw_table_btn("Π14", "14")
-        with tr_cols[2]: draw_table_btn("Π13", "13")
+        with tr_cols[2]: draw_table_btn("Π13b", "13", key_suffix="top2")
         
         st.write("")
         # Δεξιά Σειρά
