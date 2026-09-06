@@ -26,20 +26,30 @@ st.markdown("""
     
     /* Layout Σάλας / Πλάνου */
     .floor-box {
-        background-color: #eef2f5;
-        border: 2px dashed #b0bec5;
+        background-color: #f4f6f8;
+        border: 2px solid #cfd8dc;
         padding: 15px;
         border-radius: 12px;
         margin-bottom: 20px;
     }
-    .bar-label {
+    .corridor-box {
         background-color: #37474f;
         color: white;
         text-align: center;
-        padding: 12px;
+        padding: 8px;
         font-weight: bold;
-        border-radius: 6px;
-        margin: 15px 0;
+        letter-spacing: 2px;
+        border-radius: 4px;
+        margin: 6px 0;
+    }
+    .entrance-label {
+        background-color: #d32f2f;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-weight: bold;
+        display: inline-block;
+        margin-top: 10px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -76,8 +86,17 @@ def format_date_with_day(date_obj):
     day_name = DAYS_GR[date_obj.strftime("%A")]
     return f"{day_name} {date_obj.strftime('%d/%m/%Y')}"
 
+# Τραπέζια Ταράτσας βάσει του νέου σχεδίου
+ROOF_TABLES = [
+    "Π1", "Π2", "Π3", "Π4", "Π5", "Π6", "Π7", "Π8", "Π9", "Π10", "Π11", "Π12", "Π13", "Π14",
+    "Π16", "Π17", "Π18", "Π19", "Π20", "Π21", "Π22", "Π23", "Π24", "Π25", "Π26", "Π27", "Π28", "Π29", "Π30",
+    "Π40", "Π41", "Π42", "Π43", "Π44", "Π45",
+    "Π50", "Π51", "Π52", "Π53", "Π54", "Π55",
+    "Π60", "Π70"
+]
+
 TABLES_CONFIG = {
-    "Ταράτσα": [f"Π{i}" for i in range(1, 31)] + ["Π60", "Π70"],
+    "Ταράτσα": ROOF_TABLES,
     "Εσωτερικός": [f"Κ{i}" for i in range(1, 16)] + [f"Κ{i}" for i in range(30, 34)] + ["Bar 1", "Bar 2"]
 }
 
@@ -227,7 +246,7 @@ with tab1:
                 for _, row in completed_reservations.iterrows():
                     render_reservation_card(row, is_archived=True)
 
-# TAB 2: FLOOR PLAN (ΤΑΡΑΤΣΑ BASS-RELIEF BASED ON DRAWING)
+# TAB 2: FLOOR PLAN (ΑΚΡΙΒΕΣ ΣΧΕΔΙΟ ΤΑΡΑΤΣΑΣ)
 with tab2:
     st.subheader(f"📍 Κάτοψη Ταράτσας - {format_date_with_day(st.session_state.selected_date)}")
     st.caption("🟢 Ελεύθερο | 🔴 Κρατημένο | 🔵 Ήρθε | Πατήστε πάνω στο τραπέζι για λεπτομέρειες")
@@ -236,8 +255,11 @@ with tab2:
     table_status = {}
     table_res_data = {}
     
-    for t in TABLES_CONFIG["Ταράτσα"]:
-        t_res = df_filtered[df_filtered["Τραπέζι"] == t]
+    for t in ROOF_TABLES:
+        # Αναζήτηση είτε ως "Π1" είτε ως "1"
+        num_only = t.replace("Π", "")
+        t_res = df_filtered[(df_filtered["Τραπέζι"] == t) | (df_filtered["Τραπέζι"] == num_only)]
+        
         if t_res.empty:
             table_status[t] = "🟢"
             table_res_data[t] = []
@@ -249,49 +271,88 @@ with tab2:
                 table_status[t] = "🔴"
             table_res_data[t] = t_res.to_dict('records')
 
-    def draw_table_btn(t_code):
-        label = f"{table_status.get(t_code, '🟢')} {t_code}"
+    def draw_table_btn(t_code, display_name=None):
+        disp = display_name if display_name else t_code
+        label = f"{table_status.get(t_code, '🟢')} {disp}"
         if st.button(label, key=f"fp_{t_code}", use_container_width=True):
             table_info_dialog(t_code, table_res_data.get(t_code, []))
 
     st.markdown("<div class='floor-box'>", unsafe_allow_html=True)
     
-    # --- 1. ΠΑΝΩ ΜΕΡΟΣ & ΑΡΙΣΤΕΡΗ/ΔΕΞΙΑ ΠΛΕΥΡΑ ---
-    top_col1, top_col2, top_col3 = st.columns([1.5, 6, 1.5])
+    # --- 1. ΠΑΝΩ ΜΕΡΟΣ & ΠΛΑΙΝΑ ---
+    top_col_left, top_col_mid, top_col_right = st.columns([1.5, 7, 2])
     
-    with top_col1: # Αριστερός Τοίχος
-        st.markdown("**Αριστερά**")
-        draw_table_btn("Π1")
-        draw_table_btn("Π2")
-        draw_table_btn("Π3")
-        draw_table_btn("Π4")
+    with top_col_left:
+        # Αριστερά: 4 πάνω, 3, 2, 1
+        draw_table_btn("Π4", "4")
+        st.write("")
+        draw_table_btn("Π3", "3")
+        draw_table_btn("Π2", "2")
+        draw_table_btn("Π1", "1")
 
-    with top_col2: # Πάνω Σειρά (Κεντρικά)
-        st.markdown("**Πάνω Σειρά**")
-        t_cols = st.columns(7)
-        top_tables = ["Π5", "Π6", "Π7", "Π8", "Π9", "Π10", "Π11"]
-        for idx, t_code in enumerate(top_tables):
+    with top_col_mid:
+        # Πάνω Σειρά: 5 έως 12
+        t_cols = st.columns(8)
+        top_mids = ["Π5", "Π6", "Π7", "Π8", "Π9", "Π10", "Π11", "Π12"]
+        for idx, t_code in enumerate(top_mids):
             with t_cols[idx]:
-                draw_table_btn(t_code)
+                draw_table_btn(t_code, t_code.replace("Π", ""))
+        
+        st.write("---")
+        
+        # ΚΕΝΤΡΙΚΟΣ ΔΙΑΔΡΟΜΟΣ (ISLAND)
+        # Πάνω πλευρά διαδρόμου: 40-45
+        c_top = st.columns(6)
+        for idx, t_code in enumerate(["Π40", "Π41", "Π42", "Π43", "Π44", "Π45"]):
+            with c_top[idx]:
+                draw_table_btn(t_code, t_code.replace("Π", ""))
                 
-        # --- ΚΕΝΤΡΙΚΟ BAR / CENTER ISLAND ---
-        st.markdown("<div class='bar-label'>🍹 ΚΕΝΤΡΙΚΟ BAR / ISLAND</div>", unsafe_allow_html=True)
+        st.markdown("<div class='corridor-box'>ΚΕΝΤΡΙΚΟΣ ΔΙΑΔΡΟΜΟΣ</div>", unsafe_allow_html=True)
+        
+        # Κάτω πλευρά διαδρόμου: 50-55
+        c_bot = st.columns(6)
+        for idx, t_code in enumerate(["Π50", "Π51", "Π52", "Π53", "Π54", "Π55"]):
+            with c_bot[idx]:
+                draw_table_btn(t_code, t_code.replace("Π", ""))
 
-    with top_col3: # Δεξιά Σειρά
-        st.markdown("**Δεξιά**")
-        draw_table_btn("Π12")
-        draw_table_btn("Π13")
-        draw_table_btn("Π14")
-        draw_table_btn("Π15")
-        draw_table_btn("Π16")
+    with top_col_right:
+        # Πάνω Δεξιά: 13, 14, 13
+        tr_cols = st.columns(3)
+        with tr_cols[0]: draw_table_btn("Π13", "13")
+        with tr_cols[1]: draw_table_btn("Π14", "14")
+        with tr_cols[2]: draw_table_btn("Π13", "13")
+        
+        st.write("")
+        # Δεξιά Σειρά
+        r_col1, r_col2 = st.columns(2)
+        with r_col1:
+            st.write("")
+            draw_table_btn("Π60", "60")
+            st.write("")
+            draw_table_btn("Π70", "70")
+        with r_col2:
+            draw_table_btn("Π16", "16")
+            draw_table_btn("Π17", "17")
+            draw_table_btn("Π18", "18")
+            draw_table_btn("Π19", "19")
+            draw_table_btn("Π20", "20")
+            draw_table_btn("Π21", "21")
 
-    # --- 2. ΚΑΤΩ ΣΕΙΡΑ (ΠΛΕΥΡΑ ΘΕΑΣ / PERIMETER) ---
-    st.markdown("**Κάτω Σειρά (Περίμετρος)**")
-    bot_cols = st.columns(9)
-    bot_tables = ["Π17", "Π18", "Π19", "Π20", "Π21", "Π22", "Π23", "Π60", "Π70"]
-    for idx, t_code in enumerate(bot_tables):
-        with bot_cols[idx]:
-            draw_table_btn(t_code)
+    st.write("---")
+
+    # --- 2. ΚΑΤΩ ΜΕΡΟΣ & ΕΙΣΟΔΟΣ ---
+    bot_left, bot_mid = st.columns([2, 8])
+    
+    with bot_left:
+        st.markdown("<div class='entrance-label'>🚪 Είσοδος</div>", unsafe_allow_html=True)
+
+    with bot_mid:
+        # Σειρά 30 έως 22
+        b_cols = st.columns(9)
+        bot_tables = ["Π30", "Π29", "Π28", "Π27", "Π26", "Π25", "Π24", "Π23", "Π22"]
+        for idx, t_code in enumerate(bot_tables):
+            with b_cols[idx]:
+                draw_table_btn(t_code, t_code.replace("Π", ""))
 
     st.markdown("</div>", unsafe_allow_html=True)
 
